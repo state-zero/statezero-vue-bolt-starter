@@ -228,7 +228,90 @@ const deleteCompleted = async () => {
 
 ---
 
-## 🎨 5. COMPLETE VUE COMPONENT PATTERN
+## ⚡ 5. ACTIONS - Custom Server Functions
+
+Actions are **type-safe async functions** that call custom server-side business logic. They're auto-generated from your backend Python functions and work like any other async function.
+
+### Basic Usage
+```javascript
+import { sendWelcomeEmail, createInvoice } from '../generated-actions';
+
+// Simple action call - just like any async function
+const welcomeUser = async (userId) => {
+  try {
+    const result = await sendWelcomeEmail({ userId });
+    console.log('Email sent!', result.status);
+  } catch (error) {
+    console.error('Failed to send email:', error.message);
+  }
+};
+
+// Action with multiple parameters
+const createUserInvoice = async (customerId, amount, isUrgent) => {
+  try {
+    const invoice = await createInvoice({
+      customerId,
+      amount,
+      isUrgent
+    });
+    
+    console.log('Invoice created:', invoice.invoiceId);
+    return invoice;
+  } catch (error) {
+    console.error('Failed to create invoice:', error.message);
+    throw error;
+  }
+};
+```
+
+### Actions in Vue Components
+```javascript
+import { sendNotification } from '../generated-actions';
+
+const NotificationForm = {
+  setup() {
+    const message = ref('');
+    const loading = ref(false);
+    
+    const handleSend = async () => {
+      loading.value = true;
+      try {
+        await sendNotification({
+          message: message.value,
+          priority: 'high'
+        });
+        message.value = ''; // Clear form
+        alert('Notification sent!');
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    return { message, loading, handleSend };
+  }
+};
+```
+
+### Action Key Benefits
+- **No manual API calls** - Handle HTTP requests automatically
+- **Full type safety** - Input/output validation and IntelliSense
+- **Structured errors** - Easy to catch and handle failures
+- **Permission handling** - Authentication built-in
+
+### Generation
+```bash
+# Sync actions from backend
+npx statezero-cli sync-actions
+
+# Or sync everything (models + actions)
+npx statezero-cli sync
+```
+
+---
+
+## 🎨 6. COMPLETE VUE COMPONENT PATTERN
 
 ```vue
 <template>
@@ -332,7 +415,7 @@ export default {
 
 ---
 
-## 🔥 6. ADVANCED PATTERNS
+## 🔥 7. ADVANCED PATTERNS
 
 ### OR Queries
 ```javascript
@@ -393,7 +476,7 @@ const handleFileInput = async (event) => {
 
 ---
 
-## ❌ 7. COMMON MISTAKES TO AVOID
+## ❌ 8. COMMON MISTAKES TO AVOID
 
 ### Don't Break Reactivity
 ```javascript
@@ -440,15 +523,47 @@ export default {
 };
 ```
 
+### Share Base QuerySets for Related Queries
+```javascript
+// ✅ CORRECT - Chain from base queryset for clarity and optimization
+const baseTodos = useQueryset(() => Todo.objects.filter({ user: currentUser.id }));
+
+const activeTodos = useQueryset(() => 
+  baseTodos.value.filter({ completed: false })
+);
+
+const completedTodos = useQueryset(() => 
+  baseTodos.value.filter({ completed: true })
+);
+
+const urgentTodos = useQueryset(() => 
+  baseTodos.value.filter({ priority__gte: 8 })
+);
+
+// 🚫 WRONG - Separate base queries (less clear, harder to optimize)
+const activeTodos = useQueryset(() => 
+  Todo.objects.filter({ user: currentUser.id, completed: false })
+);
+
+const completedTodos = useQueryset(() => 
+  Todo.objects.filter({ user: currentUser.id, completed: true })
+);
+
+const urgentTodos = useQueryset(() => 
+  Todo.objects.filter({ user: currentUser.id, priority__gte: 8 })
+);
+```
+
 ---
 
-## 📊 8. WHEN TO USE WHAT
+## 📊 9. WHEN TO USE WHAT
 
 | Scenario | Pattern | Example |
 |----------|---------|---------|
 | Display data | `useQueryset()` (optimistic) | `const todos = useQueryset(() => Todo.objects.all())` |
 | User interactions | No await (optimistic) | `todo.save()` |
 | Form submissions | Usually no await | `Todo.objects.create(data)` |
+| Custom business logic | Actions (await) | `await sendWelcomeEmail({ userId })` |
 | Critical operations | Use await when required | `await payment.process()` |
 | Destructive actions | Often await | `await todo.delete()` |
 | Filter data | Database query | `Todo.objects.filter({ priority__gt: 5 })` |
@@ -460,15 +575,17 @@ export default {
 
 ## 🎯 SUMMARY FOR LLMs
 
-**StateZero = Django ORM in JavaScript + Reactivity**
+**StateZero = Django ORM in JavaScript + Reactivity + Custom Actions**
 
 1. **Import models** from `./models` (auto-generated from Django)
-2. **Use `useQueryset()`** for reactive data display  
-3. **Django syntax works exactly the same**: `filter()`, `exclude()`, `field__contains`, etc.
-4. **Edit instances Django-style**: `instance.field = value; instance.save()`
-5. **DEFAULT: Use optimistic updates** (no await) for instant, responsive UI
-6. **RARE: Only await when you absolutely need server confirmation** 
-7. **Filter at database level**, not locally in JavaScript
-8. **Use computed() only for display logic**, not data filtering
+2. **Import actions** from `./generated-actions` (auto-generated from Django)
+3. **Use `useQueryset()`** for reactive data display  
+4. **Django syntax works exactly the same**: `filter()`, `exclude()`, `field__contains`, etc.
+5. **Edit instances Django-style**: `instance.field = value; instance.save()`
+6. **Call actions like async functions**: `await sendEmail({ userId })` 
+7. **DEFAULT: Use optimistic updates** (no await) for instant, responsive UI
+8. **RARE: Only await when you absolutely need server confirmation** 
+9. **Filter at database level**, not locally in JavaScript
+10. **Use computed() only for display logic**, not data filtering
 
-**Core pattern**: Optimistic by default + Django syntax + reactive queries = fast, responsive UIs that feel instant.
+**Core pattern**: Optimistic by default + Django syntax + reactive queries + type-safe actions = fast, responsive UIs that feel instant.
