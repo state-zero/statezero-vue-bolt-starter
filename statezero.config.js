@@ -5,6 +5,7 @@ export default {
     default: {
       API_URL: `${BASE_URL}/statezero`,
       GENERATED_TYPES_DIR: "./src/models/",
+      GENERATED_ACTIONS_DIR: "./src/actions/",
       fileRootURL: BASE_URL,
       fileUploadMode: "server",
       BACKEND_TZ: "UTC",
